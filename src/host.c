@@ -37,7 +37,18 @@ int main(int argc, char* argv[]) {
 	}
 
 	enclave_hello(enclave);	
+	
+	uint8_t *pem_key = NULL;
+        size_t key_size;
+	uint8_t *remote_report = NULL;
+	size_t remote_report_size;
+		
+	int retval;
+	
+	get_remote_report_with_pubkey(enclave, &retval, &pem_key, &key_size, &remote_report, &remote_report_size);
 
+	printf("%s\n", pem_key);
+	printf("%zu\n", remote_report_size);	
 	oe_terminate_enclave(enclave);
 	return 0;
 }
