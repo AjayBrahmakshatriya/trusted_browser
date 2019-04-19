@@ -8,7 +8,7 @@ INC_DIR=$(shell pwd)/include
 KEY_DIR=$(shell pwd)/keys
 
 
-TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed
+TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed $(BUILD_DIR)/create_enclave $(BUILD_DIR)/socket_server.py
 DEFINES=-DOE_API_VERSION=2
 CXX_ONLY_DEFINES=-std=c++11
 
@@ -71,6 +71,13 @@ $(BUILD_DIR)/common.a: $(COMMON_OBJECTS)
 
 $(BUILD_DIR)/common/%.o: $(SRC_DIR)/common/%.cpp $(COMMON_HEADERS)
 	$(CXX) -c $(ENC_CPPFLAGS) $< -o $@ -I$(BUILD_DIR)/enclave-directory $(DEFINES) $(CXX_ONLY_DEFINES)
+
+$(BUILD_DIR)/create_enclave: $(SRC_DIR)/handlers/create_enclave.c
+	$(CC) $< -o $@
+
+$(BUILD_DIR)/socket_server.py: $(SRC_DIR)/handlers/server.py
+	cp $< $@
+	sed -ie 's?BINARY_PATH_PLACEHOLDER?$(BUILD_DIR)/create_enclave?g' $@
 
 run:
 	$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed
