@@ -1,20 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <inttypes.h>
-#include <fcntl.h>
-
-#if __BIG_ENDIAN__
-    #define htonll(x)   (x)
-    #define ntohll(x)   (x)
-#else
-    #define htonll(x)   ((((uint64_t)htonl(x&0xFFFFFFFF)) << 32) + htonl(x >> 32))
-    #define ntohll(x)   ((((uint64_t)ntohl(x&0xFFFFFFFF)) << 32) + ntohl(x >> 32))
-#endif
+#include "websockets.h"
 
 char * read_websocket_message(int fd) {
 	unsigned char a;
@@ -26,7 +10,7 @@ char * read_websocket_message(int fd) {
 		fprintf(stderr, "FIN = 0 currently not handled\n");
 		exit(-3);
 	}
-	
+
 	int opcode = a & 0xf;
 	if (opcode != 1) {
 		fprintf(stderr, "OPCODE != 1 currently not handled\n");
@@ -36,10 +20,10 @@ char * read_websocket_message(int fd) {
 	unsigned char b;
 	if(!read(fd, &b, sizeof(b)))
 		return NULL;
-	
+
 	int MASK = b >> 7;
 	unsigned long long payload_length = b & 0x7f;
-	
+
 	if (payload_length == 126) {
 		unsigned short c;
 		if(!read(fd, &c, sizeof(c)))
@@ -59,7 +43,7 @@ char * read_websocket_message(int fd) {
 			return NULL;
 	}
 
-	char * payload = malloc(payload_length + 1);
+	char * payload = (char*)malloc(payload_length + 1);
 	if (!payload_length) {
 		fprintf(stderr, "malloc for payload failed\n");
 		exit(-4);
@@ -71,9 +55,10 @@ char * read_websocket_message(int fd) {
 			free(payload);
 			return NULL;
 		}
+		total_read += read_amount;
 	}
 	if (MASK) {
-		char *mask = (void*)&mask_key;
+		char *mask = (char*)&mask_key;
 		for (unsigned long i = 0; i < payload_length; i++) {
 			payload[i] = payload[i] ^ mask[i % 4];
 		}
@@ -81,38 +66,25 @@ char * read_websocket_message(int fd) {
 	payload[payload_length] = 0;
 	return payload;
 }
-
-void send_websocket_message(int fd, char* payload, unsigned long long payload_length) {
+int send_websocket_message(int fd, char* payload, unsigned long long payload_length) {
 	unsigned char a = 0x81;
-	write(fd, &a, sizeof(a));
+	if(!write(fd, &a, sizeof(a)))
+		return -1;
 	unsigned char b = 0;
 
 	if (payload_length < 126) {
 		b = b | (unsigned char)payload_length;
-		write(fd, &b, sizeof(b));
+		if(!write(fd, &b, sizeof(b)))
+			return -1;
 	}else {
 		b = b | (unsigned char) 127;
-		write(fd, &b, sizeof(b));
+		if(!write(fd, &b, sizeof(b)))
+			return -1;
 		unsigned long long payload_length_network = htonll(payload_length);
-		write(fd, &payload_length_network, sizeof(payload_length_network));
+		if(!write(fd, &payload_length_network, sizeof(payload_length_network)))
+			return -1;
 	}
-	write(fd, payload, payload_length);
-}
-
-
-int main(int argc, char* argv[]) {
-	if (argc < 2) {
-		fprintf(stderr, "Not enough arguments to create enclave\n");
+	if(!write(fd, payload, payload_length))
 		return -1;
-	}
-	int fd = atoi(argv[1]);
-	if (fcntl(fd, F_GETFD) == -1 && errno == EBADF) {
-		fprintf(stderr, "Bad file descriptor passed\n");
-		return -2;
-	}
-	char *message = read_websocket_message(fd);
-	printf("Message received= %s\n", message);
-	send_websocket_message(fd, message, strlen(message));
-	free(message);
 	return 0;
 }

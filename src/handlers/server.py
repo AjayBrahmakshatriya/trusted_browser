@@ -43,7 +43,7 @@ def websocket_handler(conn, socket):
                  + "Sec-WebSocket-Accept: " + response_string + "\r\n" \
                  + "\r\n"
         conn.send(response)
-       
+	print ("Starting enclave")       
         if os.fork():
             conn.close()
             return

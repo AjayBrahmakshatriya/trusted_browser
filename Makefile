@@ -8,7 +8,7 @@ INC_DIR=$(shell pwd)/include
 KEY_DIR=$(shell pwd)/keys
 
 
-TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed $(BUILD_DIR)/create_enclave $(BUILD_DIR)/socket_server.py
+TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed $(BUILD_DIR)/socket_server.py
 DEFINES=-DOE_API_VERSION=2
 CXX_ONLY_DEFINES=-std=c++11
 
@@ -40,7 +40,7 @@ $(BUILD_DIR)/host-directory/project_t.h $(BUILD_DIR)/host-directory/project_u.h 
 
 
 $(BUILD_DIR)/host.o: $(SRC_DIR)/host.c $(BUILD_DIR)/host-directory/project_u.h
-	$(CC) -c $(HOST_CFLAGS) $< -o $@ -I$(BUILD_DIR)/host-directory $(DEFINES)
+	$(CC) -c $(HOST_CFLAGS) $< -o $@ -I$(BUILD_DIR)/host-directory $(DEFINES) -I$(SRC_DIR)/common/
 $(BUILD_DIR)/project_u.o: $(BUILD_DIR)/host-directory/project_u.c $(BUILD_DIR)/host-directory/project_u.h
 	$(CC) -c $(HOST_CFLAGS) $< -o $@ -I$(BUILD_DIR)/host-directory $(DEFINES)
 
@@ -53,14 +53,14 @@ $(BUILD_DIR)/project_t.o: $(BUILD_DIR)/enclave-directory/project_t.c $(BUILD_DIR
 
 
 
-$(BUILD_DIR)/host: $(BUILD_DIR)/host.o $(BUILD_DIR)/project_u.o
-	$(CC) $^ -o $@ $(HOST_LIBS)
+$(BUILD_DIR)/host: $(BUILD_DIR)/host.o $(BUILD_DIR)/project_u.o $(BUILD_DIR)/common.a
+	$(CC) $^ -o $@ $(HOST_LIBS) -lcurl
 
 $(KEY_DIR)/private.pem:
 	cd $(KEY_DIR); sh $(KEY_DIR)/gen_key.sh
 
 
-$(BUILD_DIR)/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $(KEY_DIR)/private.pem $(BUILD_DIR)/common.a
+$(BUILD_DIR)/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $(KEY_DIR)/private.pem $(BUILD_DIR)/common.a $(SRC_DIR)/enc.conf
 	echo $(COMMON_SOURCES)
 	$(CC) $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o -o $(BUILD_DIR)/enclave $(BUILD_DIR)/common.a $(ENC_CPPLIBS)
 	$(OE_SDK_PATH)/bin/oesign sign --enclave-image $(BUILD_DIR)/enclave --config-file $(SRC_DIR)/enc.conf --key-file $(KEY_DIR)/private.pem
@@ -77,7 +77,7 @@ $(BUILD_DIR)/create_enclave: $(SRC_DIR)/handlers/create_enclave.c
 
 $(BUILD_DIR)/socket_server.py: $(SRC_DIR)/handlers/server.py
 	cp $< $@
-	sed -ie 's?BINARY_PATH_PLACEHOLDER?$(BUILD_DIR)/create_enclave?g' $@
+	sed -ie 's?BINARY_PATH_PLACEHOLDER?$(BUILD_DIR)/host?g' $@
 
 run:
 	$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed
