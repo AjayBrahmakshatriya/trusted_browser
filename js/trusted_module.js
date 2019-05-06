@@ -15,7 +15,7 @@ class TrustedModule {
 		}(this);
 		this.image_url = image_url;
 	}
-	open() {
+	run() {
 		this.socket = new WebSocket("ws://localhost:8082");
 		this.socket.onmessage = function(x) {
 			return function(event) {

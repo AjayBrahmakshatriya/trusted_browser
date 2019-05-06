@@ -2,16 +2,29 @@
 <head>
 <script src="/trusted_module.js"></script>
 <body>
-	Echo Server demo (check console for results)
+	Echo Server demo 
+	<br>
+	<div id="log">
+	</div>
 	<script>
-		module = new TrustedModule("enclave.signed", "dummypath");
-		module.onmessage = function(message) {
-			console.log(message);
-			module.terminate();
+		document.body.onload = function() {
+			module = new TrustedModule("enclave.signed", "dummypath");
+			var ping_caller = null;
+			var ping_count = 0;
+			var ping_function = function() {
+				module.send(Math.round(window.performance.now()*1000).toString());
+				if (ping_count > 100)
+					clearInterval(ping_caller);	
+			}
+			module.onmessage = function(message) {
+				curr_time = (Math.round(window.performance.now()*1000)); 
+				send_time = parseInt(message)
+				document.getElementById("log").innerHTML += "<br>" + (curr_time - send_time).toString() + "us";
+			}
+			module.onready = function() {
+				ping_caller = setInterval(function(){ping_function();}, 200);
+			}
+			module.run();
 		}
-		module.onready = function() {
-			module.send("Hello from client");
-		}
-		module.open();
 	</script>
 </body>

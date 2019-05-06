@@ -63,7 +63,7 @@ int recv_message(void) {
 
 int send_message(void) {
 	message_buffer[PAGE_SIZE-1] = 0;
-	int total_length = strlen(message_buffer)+1;
+	int total_length = strlen(message_buffer);
 	return send_websocket_message(websocket_fd, message_buffer, total_length);	
 }
 int main(int argc, char* argv[]) {
