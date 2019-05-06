@@ -106,11 +106,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (res != CURLE_OK) {
-		send_websocket_message(fd, "FAILED", sizeof("FAILED"));
+		send_websocket_message(fd, "FAILED", sizeof("FAILED")-1);
 		fprintf(stderr, "Couldn't download image\n");
 		return -1;
 	} else {
-		send_websocket_message(fd, "OK", sizeof("OK"));
+		send_websocket_message(fd, "OK", sizeof("OK")-1);
 	}
 
 	free(enclave_url);

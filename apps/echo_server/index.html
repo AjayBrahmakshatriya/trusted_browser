@@ -1,0 +1,17 @@
+<html>
+<head>
+<script src="/trusted_module.js"></script>
+<body>
+	Echo Server demo (check console for results)
+	<script>
+		module = new TrustedModule("enclave.signed", "dummypath");
+		module.onmessage = function(message) {
+			console.log(message);
+			module.terminate();
+		}
+		module.onready = function() {
+			module.send("Hello from client");
+		}
+		module.open();
+	</script>
+</body>
