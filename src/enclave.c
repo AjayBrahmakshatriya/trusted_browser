@@ -4,6 +4,7 @@
 #include <string.h>
 #define PAGE_SIZE (0x1000)
 
+#include "enclave.h"
 
 
 #include "project_t.h"
@@ -37,7 +38,7 @@ int send_message_wrapper(void) {
 	send_message(&retval);
 	return retval;
 }
-char* recv(void) {
+char* recv_browser(void) {
 	if(recv_message_wrapper() != 0) {
 		return NULL;
 	}
@@ -46,15 +47,10 @@ char* recv(void) {
 	strcpy(message, message_buffer);
 	return message;
 }
-int send(char* message) {
+int send_browser(char* message) {
 	if(strlen(message) > PAGE_SIZE -2)
 		return -1;
 	strcpy(message_buffer, message);
 	return send_message_wrapper();	
 }
 
-void enclave_enter(void) {
-	char* message = recv();
-	send(message);
-	free(message);
-}

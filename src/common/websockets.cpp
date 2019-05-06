@@ -12,6 +12,8 @@ char * read_websocket_message(int fd) {
 	}
 
 	int opcode = a & 0xf;
+	if (opcode == 0x8)
+		return NULL;
 	if (opcode != 1) {
 		fprintf(stderr, "OPCODE != 1 currently not handled\n");
 		exit(-3);
@@ -44,7 +46,7 @@ char * read_websocket_message(int fd) {
 	}
 
 	char * payload = (char*)malloc(payload_length + 1);
-	if (!payload_length) {
+	if (!payload) {
 		fprintf(stderr, "malloc for payload failed\n");
 		exit(-4);
 	}

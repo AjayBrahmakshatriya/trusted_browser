@@ -87,16 +87,17 @@ int main(int argc, char* argv[]) {
 	}
 	printf("Enclave URL = %s\n",  enclave_url);
 	
-	mktemp(download_filename);
+	mkstemp(download_filename);
 	printf("Saving enclave image at %s\n", download_filename);
 	
 	CURL* curl = curl_easy_init();
+	CURLcode res;
 	if (curl) {
 		FILE* fp = fopen(download_filename, "wb");
 		curl_easy_setopt(curl, CURLOPT_URL, enclave_url);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-		CURLcode res = curl_easy_perform(curl);
+		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		fclose(fp);
 	} else {
@@ -104,7 +105,16 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
+	if (res != CURLE_OK) {
+		send_websocket_message(fd, "FAILED", sizeof("FAILED"));
+		fprintf(stderr, "Couldn't download image\n");
+		return -1;
+	} else {
+		send_websocket_message(fd, "OK", sizeof("OK"));
+	}
+
 	free(enclave_url);
+	
 	
 	enclave = create_enclave(download_filename);
 		

@@ -2,13 +2,14 @@
 OE_SDK_PATH ?= /opt/openenclave
 
 SRC_DIR=$(shell pwd)/src
+APPS_DIR=$(shell pwd)/apps
 BUILD_DIR=$(shell pwd)/build
 INC_DIR=$(shell pwd)/include
 
 KEY_DIR=$(shell pwd)/keys
 
-
-TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed $(BUILD_DIR)/socket_server.py
+APPS=$(BUILD_DIR)/echo_server.signed
+TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/socket_server.py $(APPS)
 DEFINES=-DOE_API_VERSION=2
 CXX_ONLY_DEFINES=-std=c++11
 
@@ -32,6 +33,16 @@ ENC_CPPLIBS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-g++.pc -
 COMMON_HEADERS=$(wildcard $(SRC_DIR)/common/*.h)
 COMMON_SOURCES=$(wildcard $(SRC_DIR)/common/*.cpp)
 COMMON_OBJECTS=$(subst $(SRC_DIR),$(BUILD_DIR),$(COMMON_SOURCES:.cpp=.o))
+
+$(BUILD_DIR)/%.o: $(APPS_DIR)/%/enclave.cpp $(BUILD_DIR)/enclave-directory/project_t.h $(COMMON_HEADERS) 
+	$(CC) -c $(ENC_CPPFLAGS) $< -o $@ -I$(BUILD_DIR)/enclave-directory/ $(DEFINES) -I$(SRC_DIR)/common/ -I$(SRC_DIR)
+	
+
+$(BUILD_DIR)/%.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $(KEY_DIR)/private.pem $(BUILD_DIR)/common.a $(SRC_DIR)/enc.conf $(BUILD_DIR)/%.o
+	$(CC) $(BUILD_DIR)/enclave.o $(BUILD_DIR)/$*.o $(BUILD_DIR)/project_t.o -o $(BUILD_DIR)/$* $(BUILD_DIR)/common.a $(ENC_CPPLIBS) 
+	$(OE_SDK_PATH)/bin/oesign sign --enclave-image $(BUILD_DIR)/$* --config-file $(SRC_DIR)/enc.conf --key-file $(KEY_DIR)/private.pem
+
+
 
 all: $(TARGET)
 
@@ -60,10 +71,12 @@ $(KEY_DIR)/private.pem:
 	cd $(KEY_DIR); sh $(KEY_DIR)/gen_key.sh
 
 
-$(BUILD_DIR)/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $(KEY_DIR)/private.pem $(BUILD_DIR)/common.a $(SRC_DIR)/enc.conf
-	echo $(COMMON_SOURCES)
-	$(CC) $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o -o $(BUILD_DIR)/enclave $(BUILD_DIR)/common.a $(ENC_CPPLIBS)
-	$(OE_SDK_PATH)/bin/oesign sign --enclave-image $(BUILD_DIR)/enclave --config-file $(SRC_DIR)/enc.conf --key-file $(KEY_DIR)/private.pem
+#$(BUILD_DIR)/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $(KEY_DIR)/private.pem $(BUILD_DIR)/common.a $(SRC_DIR)/enc.conf
+#	echo $(COMMON_SOURCES)
+#	$(CC) $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o -o $(BUILD_DIR)/enclave $(BUILD_DIR)/common.a $(ENC_CPPLIBS)
+#	$(OE_SDK_PATH)/bin/oesign sign --enclave-image $(BUILD_DIR)/enclave --config-file $(SRC_DIR)/enc.conf --key-file $(KEY_DIR)/private.pem
+
+
 
 
 $(BUILD_DIR)/common.a: $(COMMON_OBJECTS)
@@ -79,8 +92,7 @@ $(BUILD_DIR)/socket_server.py: $(SRC_DIR)/handlers/server.py
 	cp $< $@
 	sed -ie 's?BINARY_PATH_PLACEHOLDER?$(BUILD_DIR)/host?g' $@
 
-run:
-	$(BUILD_DIR)/host $(BUILD_DIR)/enclave.signed
+
 
 
 clean:
