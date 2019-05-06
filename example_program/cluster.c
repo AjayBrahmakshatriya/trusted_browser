@@ -120,9 +120,9 @@ point lloyd(point pts, int len, int n_cluster)
 	return cent;
 }
  
-void print_eps(point pts, int len, point cent, int n_cluster)
+void print_eps(point pts, int len, point cent, int n_cluster, char* file)
 {
-    FILE *fp = fopen("eps.eps", "w");
+    FILE *fp = fopen(file, "w");
 #	define W 400
 #	define H 400
 	int i, j;
@@ -192,8 +192,8 @@ int main(int argc, char *argv[])
         int i;
         point v = gen_xy(n_pts, 10);
         point c = lloyd(v, n_pts, K);
-        if(argc > 1 && atoi(argv[1]) == 1) {
-            print_eps(v, n_pts, c, K);
+        if(argc > 1) {
+            print_eps(v, n_pts, c, K, argv[1]);
         }
         // free(v); free(c);
         clock_t end = clock();
