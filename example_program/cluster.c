@@ -178,20 +178,26 @@ void print_eps(point pts, int len, point cent, int n_cluster)
 #define K 11
 int main(int argc, char *argv[])
 {
-    int PTS = 1000000;
-    if(argc > 1) {
-        PTS = atoi(argv[1]);
+    char buf[20];
+    int n_pts = 1;
+    while(n_pts > 0) {
+        printf("Number of points (-1 to quit):  ");
+        fgets(buf, 20, stdin);
+        n_pts = atoi(buf);
+        if(n_pts <= 0) {
+            break;
+        }
+        clock_t begin = clock();
+        printf("Clustering...\n");
+        int i;
+        point v = gen_xy(n_pts, 10);
+        point c = lloyd(v, n_pts, K);
+        if(argc > 1 && atoi(argv[1]) == 1) {
+            print_eps(v, n_pts, c, K);
+        }
+        // free(v); free(c);
+        clock_t end = clock();
+        printf("Clustering done: %f seconds \n", (double)(end - begin) / CLOCKS_PER_SEC);
     }
-    clock_t begin = clock();
-    printf("Clustering...\n");
-	int i;
-	point v = gen_xy(PTS, 10);
-	point c = lloyd(v, PTS, K);
-    if(argc > 2 && atoi(argv[2]) == 1) {
-        print_eps(v, PTS, c, K);
-    }
-	// free(v); free(c);
-    clock_t end = clock();
-    printf("Clustering done: %f seconds \n", (double)(end - begin) / CLOCKS_PER_SEC);
 	return 0;
 }
