@@ -30,6 +30,10 @@ int main(int argc, char *argv[])
     char filename[30];
     printf("Name of file to write to: ");
     fgets(filename, 30, stdin);
+    char *pos;
+    if((pos=strchr(filename, '\n')) != NULL) {
+        *pos = '\0';
+    }
     printf("Number of points to write: ");
     fgets(n_pts_, 10, stdin);
     n_pts = atoi(n_pts_);
