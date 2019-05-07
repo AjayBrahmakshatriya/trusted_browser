@@ -74,6 +74,7 @@ exit:
  * accompanying data is ensured by comparing its SHA256 digest against the
  * report_data field.
  */
+/*
 bool Attestation::attest_remote_report(
     const uint8_t* remote_report,
     size_t remote_report_size,
@@ -164,3 +165,4 @@ bool Attestation::attest_remote_report(
 exit:
     return ret;
 }
+*/
