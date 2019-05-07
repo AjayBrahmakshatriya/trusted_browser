@@ -10,7 +10,7 @@ INC_DIR=$(shell pwd)/include
 KEY_DIR=$(shell pwd)/keys
 
 APPS=$(BUILD_DIR)/echo_server/enclave.signed $(BUILD_DIR)/echo_server/index.html
-TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/socket_server.py $(APPS) $(BUILD_DIR)/trusted_module.js
+TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/socket_server.py $(APPS) $(BUILD_DIR)/trusted_module.js $(BUILD_DIR)/attestation
 DEFINES=-DOE_API_VERSION=2
 CXX_ONLY_DEFINES=-std=c++11
 
@@ -67,6 +67,7 @@ $(BUILD_DIR)/host.o: $(SRC_DIR)/host.c $(BUILD_DIR)/host-directory/project_u.h
 $(BUILD_DIR)/project_u.o: $(BUILD_DIR)/host-directory/project_u.c $(BUILD_DIR)/host-directory/project_u.h
 	$(CC) -c $(HOST_CFLAGS) $< -o $@ -I$(BUILD_DIR)/host-directory $(DEFINES)
 
+
 	
 
 $(BUILD_DIR)/enclave.o: $(SRC_DIR)/enclave.c $(BUILD_DIR)/enclave-directory/project_t.h $(COMMON_HEADERS)
@@ -75,9 +76,18 @@ $(BUILD_DIR)/project_t.o: $(BUILD_DIR)/enclave-directory/project_t.c $(BUILD_DIR
 	$(CC) -c $(ENC_CFLAGS) $< -o $@ -I$(BUILD_DIR)/enclave-directory $(DEFINES)
 
 
+$(BUILD_DIR)/attestation.o: $(SRC_DIR)/attestation/attestation.cpp $(COMMON_HEADERS)
+	$(CXX) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@  -std=c++11 -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I/home/ajay/openenclave/include
+
+$(BUILD_DIR)/safecrt.o: $(SRC_DIR)/attestation/safecrt.c $(COMMON_HEADERS)
+	$(CC) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@ -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I/home/ajay/openenclave/include
 
 $(BUILD_DIR)/host: $(BUILD_DIR)/host.o $(BUILD_DIR)/project_u.o $(BUILD_DIR)/common.a
 	$(CC) $^ -o $@ $(HOST_LIBS) -lcurl
+
+$(BUILD_DIR)/attestation: $(BUILD_DIR)/attestation.o $(BUILD_DIR)/common/crypto.o $(BUILD_DIR)/safecrt.o
+	#$(CXX) $^ -o $@ -lmbedcrypto
+	$(CXX) $^ -o $@ $(OE_SDK_PATH)/lib/openenclave/enclave/liboeenclave.a -lmbedcrypto -lmbedx509 -lsgx_enclave_common -lpthread
 
 $(KEY_DIR)/private.pem:
 	cd $(KEY_DIR); sh $(KEY_DIR)/gen_key.sh

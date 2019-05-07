@@ -4,7 +4,7 @@
 #ifndef OE_SAMPLES_ATTESTATION_ENC_CRYPTO_H
 #define OE_SAMPLES_ATTESTATION_ENC_CRYPTO_H
 
-#include <openenclave/enclave.h>
+//#include <openenclave/enclave.h>
 // Includes for mbedtls shipped with oe.
 // Also add the following libraries to your linker command line:
 // -loeenclave -lmbedcrypto -lmbedtls -lmbedx509

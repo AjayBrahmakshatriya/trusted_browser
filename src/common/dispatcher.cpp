@@ -152,7 +152,7 @@ exit:
     }
     return ret;
 }
-
+/*
 int ecall_dispatcher::verify_report_and_set_pubkey(
     uint8_t* pem_key,
     size_t key_size,
@@ -184,7 +184,7 @@ int ecall_dispatcher::verify_report_and_set_pubkey(
 exit:
     return ret;
 }
-
+*/
 int ecall_dispatcher::generate_encrypted_message(uint8_t** data, size_t* size)
 {
     uint8_t encrypted_data_buf[1024];

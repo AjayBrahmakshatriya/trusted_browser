@@ -4,7 +4,9 @@
 #ifndef OE_SAMPLES_ATTESTATION_ENC_ATTESTATION_H
 #define OE_SAMPLES_ATTESTATION_ENC_ATTESTATION_H
 
+#ifndef NO_OE_HEADER
 #include <openenclave/enclave.h>
+#endif
 #include "crypto.h"
 
 #define ENCLAVE_SECRET_DATA_SIZE 16
