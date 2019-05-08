@@ -130,7 +130,6 @@ int main(int argc, char* argv[]) {
 
 
 //	enclave_hello(enclave);	
-/*	
 	uint8_t *pem_key = NULL;
         size_t key_size;
 	uint8_t *remote_report = NULL;
@@ -139,10 +138,14 @@ int main(int argc, char* argv[]) {
 	int retval;
 	
 	get_remote_report_with_pubkey(enclave, &retval, &pem_key, &key_size, &remote_report, &remote_report_size);
-
 	printf("%s\n", pem_key);
-	printf("%zu\n", remote_report_size);	
-*/
+	FILE * f = fopen("enclave_key.pem", "wb");
+	fwrite(pem_key, 1, key_size, f);
+	fclose(f);
+	 f = fopen("report.dat", "wb");
+	fwrite(remote_report, 1, remote_report_size, f);
+	fclose(f);
+	
 	cleanup_enclave();
 
 

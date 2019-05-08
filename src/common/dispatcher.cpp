@@ -64,7 +64,7 @@ bool ecall_dispatcher::initialize(const char* name)
         goto exit;
     }
 */
-    m_attestation = new Attestation(m_crypto);
+    m_attestation = new Attestation(m_crypto, NULL);
     if (m_attestation == NULL)
     {
         goto exit;

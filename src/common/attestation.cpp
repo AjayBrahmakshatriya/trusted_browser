@@ -5,7 +5,7 @@
 #include <string.h>
 #include "log.h"
 
-Attestation::Attestation(Crypto* crypto)
+Attestation::Attestation(Crypto* crypto, unsigned char *enclave_mrsigner)
 {
     m_crypto = crypto;
     m_enclave_mrsigner = NULL;

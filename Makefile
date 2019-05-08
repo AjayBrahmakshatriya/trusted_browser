@@ -10,8 +10,8 @@ INC_DIR=$(shell pwd)/include
 KEY_DIR=$(shell pwd)/keys
 
 APPS=$(BUILD_DIR)/echo_server/enclave.signed $(BUILD_DIR)/echo_server/index.html
-TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/socket_server.py $(APPS) $(BUILD_DIR)/trusted_module.js $(BUILD_DIR)/attestation
-DEFINES=-DOE_API_VERSION=2
+TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/socket_server.py $(APPS) $(BUILD_DIR)/trusted_module.js $(BUILD_DIR)/attestation $(BUILD_DIR)/attestation_ocall_handler.so
+DEFINES=-DOE_API_VERSION=2 -g
 CXX_ONLY_DEFINES=-std=c++11
 
 
@@ -80,14 +80,19 @@ $(BUILD_DIR)/attestation.o: $(SRC_DIR)/attestation/attestation.cpp $(COMMON_HEAD
 	$(CXX) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@  -std=c++11 -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I/home/ajay/openenclave/include
 
 $(BUILD_DIR)/safecrt.o: $(SRC_DIR)/attestation/safecrt.c $(COMMON_HEADERS)
-	$(CC) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@ -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I/home/ajay/openenclave/include
+	$(CC) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@ -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I/home/ajay/openenclave/include -DOCALL_HANDLE_PATH=$(BUILD_DIR)/attestation_ocall_handler.so
 
 $(BUILD_DIR)/host: $(BUILD_DIR)/host.o $(BUILD_DIR)/project_u.o $(BUILD_DIR)/common.a
 	$(CC) $^ -o $@ $(HOST_LIBS) -lcurl
 
 $(BUILD_DIR)/attestation: $(BUILD_DIR)/attestation.o $(BUILD_DIR)/common/crypto.o $(BUILD_DIR)/safecrt.o
 	#$(CXX) $^ -o $@ -lmbedcrypto
-	$(CXX) $^ -o $@ $(OE_SDK_PATH)/lib/openenclave/enclave/liboeenclave.a -lmbedcrypto -lmbedx509 -lsgx_enclave_common -lpthread
+	$(CXX) $^ -o $@ $(OE_SDK_PATH)/lib/openenclave/enclave/liboeenclave.a -lmbedcrypto -lmbedx509 -lsgx_enclave_common -lpthread -ldl -g
+	#$(CXX) $^ -o $@ -lmbedcrypto -lmbedx509 -lsgx_enclave_common -lpthread
+
+$(BUILD_DIR)/attestation_ocall_handler.so: $(SRC_DIR)/attestation/hostcrt.c
+	$(CC) -shared -o $@ -Wl,--whole-archive $(OE_SDK_PATH)/lib/openenclave/host/liboehost.a -Wl,--no-whole-archive -lmbedx509 $(SRC_DIR)/attestation/hostcrt.c
+
 
 $(KEY_DIR)/private.pem:
 	cd $(KEY_DIR); sh $(KEY_DIR)/gen_key.sh
