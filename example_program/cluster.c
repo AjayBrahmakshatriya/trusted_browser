@@ -207,6 +207,10 @@ int main(int argc, char *argv[])
 
     printf("Input file with points: ");
     fgets(filename, 30, stdin);
+    char *pos;
+    if((pos=strchr(filename, '\n')) != NULL) {
+        *pos = '\0';
+    }
 
     printf("Number of points to read: ");
     fgets(n_pts_, 10, stdin);
