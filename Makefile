@@ -1,6 +1,6 @@
 
-OE_SDK_PATH ?= /opt/openenclave
-
+OE_SDK_PATH ?= $(shell pwd)/openenclave/build/install/opt/openenclave
+OE_SRC_PATH ?= $(shell pwd)/openenclave
 SRC_DIR=$(shell pwd)/src
 APPS_DIR=$(shell pwd)/apps
 JS_DIR=$(shell pwd)/js
@@ -23,15 +23,15 @@ $(shell mkdir -p $(BUILD_DIR)/common)
 
 $(shell mkdir -p $(BUILD_DIR)/echo_server)
 
-HOST_CFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oehost-gcc.pc --cflags)
-HOST_LIBS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oehost-gcc.pc --libs)
-ENC_CFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-gcc.pc --cflags)
-ENC_LIBS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-gcc.pc --libs)
+HOST_CFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oehost-gcc.pc --cflags --define-variable=prefix=$(OE_SDK_PATH))
+HOST_LIBS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oehost-gcc.pc --libs --define-variable=prefix=$(OE_SDK_PATH))
+ENC_CFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-gcc.pc --cflags --define-variable=prefix=$(OE_SDK_PATH))
+ENC_LIBS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-gcc.pc --libs --define-variable=prefix=$(OE_SDK_PATH))
 
-HOST_CPPFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oehost-g++.pc --cflags)
-ENC_CPPFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-g++.pc --cflags)
+HOST_CPPFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oehost-g++.pc --cflags --define-variable=prefix=$(OE_SDK_PATH))
+ENC_CPPFLAGS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-g++.pc --cflags --define-variable=prefix=$(OE_SDK_PATH))
 
-ENC_CPPLIBS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-g++.pc --libs)
+ENC_CPPLIBS=$(shell pkg-config $(OE_SDK_PATH)/share/pkgconfig/oeenclave-g++.pc --libs --define-variable=prefix=$(OE_SDK_PATH))
 
 COMMON_HEADERS=$(wildcard $(SRC_DIR)/common/*.h)
 COMMON_SOURCES=$(wildcard $(SRC_DIR)/common/*.cpp)
@@ -52,6 +52,7 @@ $(BUILD_DIR)/%/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $
 
 
 all: $(TARGET)
+	echo $(ENC_CPPLIBS)
 
 
 $(BUILD_DIR)/trusted_module.js: $(JS_DIR)/trusted_module.js
@@ -77,10 +78,10 @@ $(BUILD_DIR)/project_t.o: $(BUILD_DIR)/enclave-directory/project_t.c $(BUILD_DIR
 
 
 $(BUILD_DIR)/attestation.o: $(SRC_DIR)/attestation/attestation.cpp $(COMMON_HEADERS)
-	$(CXX) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@  -std=c++11 -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I/home/ajay/openenclave/include
+	$(CXX) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@  -std=c++11 -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I$(OE_SRC_PATH)/include
 
 $(BUILD_DIR)/safecrt.o: $(SRC_DIR)/attestation/safecrt.c $(COMMON_HEADERS)
-	$(CC) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@ -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I/home/ajay/openenclave/include -DOCALL_HANDLE_PATH=$(BUILD_DIR)/attestation_ocall_handler.so
+	$(CC) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@ -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I$(OE_SRC_PATH)/include -DOCALL_HANDLE_PATH=$(BUILD_DIR)/attestation_ocall_handler.so
 
 $(BUILD_DIR)/host: $(BUILD_DIR)/host.o $(BUILD_DIR)/project_u.o $(BUILD_DIR)/common.a
 	$(CC) $^ -o $@ $(HOST_LIBS) -lcurl
