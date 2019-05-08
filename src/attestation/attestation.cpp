@@ -27,7 +27,6 @@ void load_public_key(char* filename, unsigned char** buffer, size_t* size) {
 	fclose(f);
 	(*buffer)[*size] = 0;
 	(*size)++;
-	printf("Key laoded as\n%s\n", *buffer);
 }	
 
 
@@ -39,8 +38,7 @@ void load_report_file(char* filename, unsigned char** buffer, size_t* size) {
 	*size = ftell(f);
 	fseek(f, 0, SEEK_SET);
 	*buffer = (unsigned char*) malloc(*size);
-	if(*size != fread(*buffer, 1, *size, f) )
-		printf("ERROR READING = %d\n", errno);
+	fread(*buffer, 1, *size, f);
 	fclose(f);	
 }
 int main(int argc, char* argv[]) {
@@ -192,15 +190,6 @@ bool Attestation::attest_remote_report(
 	if (memcmp(parsed_report.report_data, sha256, sizeof(sha256)) != 0)
 	{
 		TRACE_ENCLAVE("SHA256 mismatch.");
-		printf("SHA256 mismatch.");
-		printf("HASH from report is \n");
-		for (int i = 0; i < sizeof(sha256); i++)
-			printf("%x", (int) parsed_report.report_data[i]);
-		printf("\n");
-		printf("HASH from argument is \n");
-		for (int i = 0; i < sizeof(sha256); i++)
-			printf("%x", (int)sha256[i]);
-		printf("\n");
 		goto exit;
 	}
 	ret = true;
