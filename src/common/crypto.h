@@ -25,6 +25,8 @@ class Crypto
     mbedtls_entropy_context m_entropy_context;
     mbedtls_pk_context m_pk_context;
     uint8_t m_public_key[512];
+    uint8_t m_symmetric_key[32];
+
     bool m_initialized;
 
     // Public key of another enclave.
@@ -83,7 +85,9 @@ class Crypto
      * Compute the sha256 hash of given data.
      */
     int Sha256(const uint8_t* data, size_t data_size, uint8_t sha256[32]);
-
+    
+    uint8_t *generate_first_message(size_t*);
+    
   private:
     /**
      * Crypto demonstrates use of mbedtls within the enclave to generate keys

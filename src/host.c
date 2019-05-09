@@ -11,6 +11,10 @@
 #include <netinet/in.h>
 #include <inttypes.h>
 #include <fcntl.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 
 
@@ -23,11 +27,11 @@
 oe_enclave_t *create_enclave(const char *enclave_path) {
 	oe_enclave_t* enclave = NULL;
 	oe_result_t result = oe_create_project_enclave(enclave_path, 
-		OE_ENCLAVE_TYPE_SGX, 		
-		0,
-		NULL,
-		0,
-		&enclave);
+			OE_ENCLAVE_TYPE_SGX, 		
+			0,
+			NULL,
+			0,
+			&enclave);
 	if (result != OE_OK) {
 		return NULL;
 	}
@@ -73,7 +77,7 @@ int main(int argc, char* argv[]) {
 	}
 	oe_enclave_t *enclave = NULL;
 	int fd = atoi(argv[1]);
-	
+
 	if (fcntl(fd, F_GETFD) == -1 && errno == EBADF) {
 		fprintf(stderr, "Bad file descriptor passed\n");
 		return -1;
@@ -83,13 +87,13 @@ int main(int argc, char* argv[]) {
 	char * enclave_url = read_websocket_message(fd);
 	if(enclave_url == NULL) {
 		fprintf(stderr, "No encalve URL received\n");
-		return -1;
+		goto fail;
 	}
 	printf("Enclave URL = %s\n",  enclave_url);
-	
+
 	mkstemp(download_filename);
 	printf("Saving enclave image at %s\n", download_filename);
-	
+
 	CURL* curl = curl_easy_init();
 	CURLcode res;
 	if (curl) {
@@ -102,52 +106,122 @@ int main(int argc, char* argv[]) {
 		fclose(fp);
 	} else {
 		fprintf(stderr, "Image download failure\n");
-		return -1;
+		goto fail;
 	}
 
 	if (res != CURLE_OK) {
 		send_websocket_message(fd, "FAILED", sizeof("FAILED")-1);
 		fprintf(stderr, "Couldn't download image\n");
-		return -1;
-	} else {
-		send_websocket_message(fd, "OK", sizeof("OK")-1);
+		goto fail;
+	}
+	free(enclave_url);
+
+
+	char *attestation_url_host = read_websocket_message(fd);
+	char *attestation_url_port_string = read_websocket_message(fd);
+	if (attestation_url_host == NULL || attestation_url_port_string == NULL) {
+		fprintf(stderr, "Attestation server details not received\n");
+		goto fail;
+	}
+	unsigned short attestation_url_port = atoi(attestation_url_port_string);
+	free(attestation_url_port_string);
+
+	printf("Creating attestation connection at %s:%d\n", attestation_url_host, (int)attestation_url_port); 
+
+	in_addr_t server_addr;
+	int fd_a;
+
+	struct hostent *hostent;
+	struct sockaddr_in sockaddr_in;
+
+	struct protoent *protoent = getprotobyname("tcp");
+	hostent = gethostbyname(attestation_url_host);
+
+	fd_a = socket(AF_INET, SOCK_STREAM, protoent->p_proto);
+	server_addr = inet_addr(inet_ntoa(*(struct in_addr*)*(hostent->h_addr_list)));
+	sockaddr_in.sin_addr.s_addr = server_addr;
+	sockaddr_in.sin_family = AF_INET;
+	sockaddr_in.sin_port = htons(attestation_url_port);
+
+	if (connect(fd_a, (struct sockaddr*)&sockaddr_in, sizeof(sockaddr_in)) == -1) {
+		fprintf(stderr, "Connection to attestation server failed\n");
+		goto fail;
 	}
 
-	free(enclave_url);
-	
-	
+	free(attestation_url_host);
+
+
 	enclave = create_enclave(download_filename);
-		
+
+
 	if (enclave == NULL) {
 		fprintf(stderr, "Enclave creation failed\n");
-		return -1;
+		goto fail;
 	}
+
+	uint8_t *pem_key = NULL;
+	size_t key_size;
+	uint8_t *remote_report = NULL;
+	size_t remote_report_size;
+
+	int retval;
+
+	get_remote_report_with_pubkey(enclave, &retval, &pem_key, &key_size, &remote_report, &remote_report_size);
+
+	char report_len_string[32];
+	sprintf(report_len_string, "0x%016lx", remote_report_size);
+	write(fd_a, report_len_string, 18);
+	write(fd_a, remote_report, remote_report_size);
+
+	char key_len_string[32];
+	sprintf(key_len_string, "0x%016lx", key_size);
+	write(fd_a, key_len_string, 18);
+	write(fd_a, pem_key, key_size);	
 
 	enclave_init(enclave, message_buffer);	
 
+
+	size_t first_message_size = *(size_t*)message_buffer;
+	uint8_t *first_message = (uint8_t*)malloc(first_message_size);
+	memcpy(first_message, message_buffer + sizeof(size_t), first_message_size);
+	char first_message_len_string[32];
+	sprintf(first_message_len_string, "0x%016lx", first_message_size);
+	write(fd_a, first_message_len_string, 18);
+	write(fd_a, first_message, first_message_size);
+	free(first_message);
+
+	
+	char attestation_response[32];
+	int res_length = 0;
+	while (res_length < 18) {
+		res_length += read(fd_a, attestation_response + res_length, 18 - res_length);
+	}
+	attestation_response[18] = 0;
+	
+	unsigned int attestation_status = 0x1;
+	if (sscanf(attestation_response, "%i", &attestation_status) != 1) {
+		fprintf(stderr, "Remote server did not attest enclave\n");
+		goto fail;
+	}
+	
+	if(attestation_status != 0) {
+		fprintf(stderr, "Remote server did not attest enclave\n");
+		fprintf(stderr, "Received %s\n", attestation_response);
+		goto fail;
+	}
+	
+	printf("Remote server successfully attested enclave\n");
+
+	send_websocket_message(fd, "OK", sizeof("OK")-1);
 	enclave_enter(enclave);
 
 
 
-//	enclave_hello(enclave);	
-	uint8_t *pem_key = NULL;
-        size_t key_size;
-	uint8_t *remote_report = NULL;
-	size_t remote_report_size;
-		
-	int retval;
-	
-	get_remote_report_with_pubkey(enclave, &retval, &pem_key, &key_size, &remote_report, &remote_report_size);
-	printf("%s\n", pem_key);
-	FILE * f = fopen("enclave_key.pem", "wb");
-	fwrite(pem_key, 1, key_size, f);
-	fclose(f);
-	 f = fopen("report.dat", "wb");
-	fwrite(remote_report, 1, remote_report_size, f);
-	fclose(f);
-	
+
 	cleanup_enclave();
-
-
 	return 0;
+fail:
+	cleanup_enclave();
+	send_websocket_message(fd, "FAILED", sizeof("FAILED")-1);	
+	return -1;
 }

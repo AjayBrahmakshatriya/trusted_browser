@@ -152,39 +152,6 @@ exit:
     }
     return ret;
 }
-/*
-int ecall_dispatcher::verify_report_and_set_pubkey(
-    uint8_t* pem_key,
-    size_t key_size,
-    uint8_t* remote_report,
-    size_t remote_report_size)
-{
-    int ret = 1;
-
-    if (m_initialized == false)
-    {
-        TRACE_ENCLAVE("ecall_dispatcher initialization failed.");
-        goto exit;
-    }
-
-    // Attest the remote report and accompanying key.
-    if (m_attestation->attest_remote_report(
-            remote_report, remote_report_size, pem_key, key_size))
-    {
-        memcpy(m_crypto->get_the_other_enclave_public_key(), pem_key, key_size);
-    }
-    else
-    {
-        TRACE_ENCLAVE("verify_report_and_set_pubkey failed.");
-        goto exit;
-    }
-    ret = 0;
-    TRACE_ENCLAVE("verify_report_and_set_pubkey succeeded.");
-
-exit:
-    return ret;
-}
-*/
 int ecall_dispatcher::generate_encrypted_message(uint8_t** data, size_t* size)
 {
     uint8_t encrypted_data_buf[1024];

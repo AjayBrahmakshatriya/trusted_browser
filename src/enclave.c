@@ -9,17 +9,25 @@
 
 #include "project_t.h"
 
+#include "attestation_key.h"
 
 int get_remote_report_with_pubkey(
     uint8_t** pem_key,
     size_t* key_size,
     uint8_t** remote_report,
     size_t* remote_report_size);
+uint8_t * generate_first_message(size_t *);
 
 char* message_buffer;
 
 void enclave_init(char* m) {
 	message_buffer = m;	
+	size_t first_message_size;
+	uint8_t *first_message = generate_first_message(&first_message_size);
+	*(size_t*)message_buffer = first_message_size;
+	memcpy(message_buffer + sizeof(size_t), first_message, first_message_size);
+	free(first_message);	
+	
 }
 
 oe_result_t enclave_hello(void) {

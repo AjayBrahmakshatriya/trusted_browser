@@ -14,6 +14,7 @@ class TrustedModule {
 			}
 		}(this);
 		this.image_url = image_url;
+		this.remote_attestation_server = remote_attestation_server
 	}
 	run() {
 		this.socket = new WebSocket("ws://localhost:8082");
@@ -31,6 +32,8 @@ class TrustedModule {
 		this.socket.onopen = function(x) {
 			return function() {
 				x.socket.send(absolutePath(x.image_url));
+				x.socket.send(x.remote_attestation_server.split(":")[0]);
+				x.socket.send(x.remote_attestation_server.split(":")[1]);
 			}
 		}(this);
 	}

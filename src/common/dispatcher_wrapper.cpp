@@ -16,5 +16,7 @@ int get_remote_report_with_pubkey(
         pem_key, key_size, remote_report, remote_report_size);
 }
 
-
+uint8_t*  generate_first_message(size_t *s) {
+	return dispatcher.generate_first_message(s);
+}
 }

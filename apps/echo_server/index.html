@@ -8,7 +8,7 @@
 	</div>
 	<script>
 		document.body.onload = function() {
-			module = new TrustedModule("enclave.signed", "dummypath");
+			module = new TrustedModule("enclave.signed",location.hostname + ":8083");
 			var ping_caller = null;
 			var ping_count = 0;
 			var ping_function = function() {

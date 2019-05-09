@@ -47,7 +47,7 @@ class ecall_dispatcher
     int process_encrypted_msg(
         uint8_t* encrypted_data,
         size_t encrypted_data_size);
-
+    uint8_t* generate_first_message(size_t *s) { return m_crypto->generate_first_message(s);}
   private:
     bool initialize(const char* name);
 };

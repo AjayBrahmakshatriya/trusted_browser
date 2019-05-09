@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+#include "attestation_key.h"
+
+
 Crypto::Crypto()
 {
     m_initialized = init_mbedtls();
@@ -72,10 +76,69 @@ bool Crypto::init_mbedtls(void)
         TRACE_ENCLAVE("mbedtls_pk_write_pubkey_pem failed (%d)\n", res);
         goto exit;
     }
+
+
+    res = mbedtls_ctr_drbg_random(&m_ctr_drbg_contex, m_symmetric_key, 32);
+    if (res != 0) 
+    {
+	TRACE_ENCLAVE("mbedtls symmetric key generation failed(%d)\n", res);
+    }
+
     ret = true;
     TRACE_ENCLAVE("mbedtls initialized.");
 exit:
     return ret;
+}
+
+
+uint8_t* Crypto::generate_first_message(size_t *message_size){
+
+	uint8_t sha256[32];
+	Sha256(m_symmetric_key, 32, sha256);
+	
+	mbedtls_rsa_context* rsa_context;
+	
+	rsa_context = mbedtls_pk_rsa(m_pk_context);
+	rsa_context->padding = MBEDTLS_RSA_PKCS_V21;
+	rsa_context->hash_id = MBEDTLS_MD_SHA256;
+	
+	uint8_t signature[1024];
+	size_t signature_size;
+	
+	int res = mbedtls_rsa_pkcs1_sign(
+		rsa_context,
+        	mbedtls_ctr_drbg_random,
+	        &m_ctr_drbg_contex,
+		MBEDTLS_RSA_PRIVATE,
+		MBEDTLS_MD_SHA256,
+		32,
+		sha256,
+		signature);
+	if (res != 0) {
+		printf("RSA signature failed for symmetric key\n");
+		return NULL;
+	}	
+	signature_size = rsa_context->len;
+	
+	uint8_t *message_to_encrypt = (uint8_t*)malloc(signature_size + 32);
+	memcpy(message_to_encrypt, m_symmetric_key, 32);
+	memcpy(message_to_encrypt+32, signature, signature_size);
+	for (int i = 0; i < 32; i++)
+		printf("%02x", (int)m_symmetric_key[i]);
+	printf("\n");
+	
+
+
+	uint8_t *encrypted_message = (unsigned char*) malloc(4096);
+	memset(encrypted_message, 0, 4096);
+	size_t encrypted_message_size;
+	Encrypt(attestation_key, message_to_encrypt, 32 + signature_size, encrypted_message, &encrypted_message_size);
+	
+       	free(message_to_encrypt);
+	 
+	*message_size = encrypted_message_size;
+	printf("First message size inside encalve = %d\n", (int) encrypted_message_size);
+	return encrypted_message;		
 }
 
 /**
