@@ -255,7 +255,6 @@ int main(int argc, char* argv[]) {
 	write(fd_a, pem_key, key_size);	
 
 	insert_seccomp_filters();
-	FILE* file = fopen("Makefile", "r");
 	enclave_init(enclave, message_buffer);	
 
 
