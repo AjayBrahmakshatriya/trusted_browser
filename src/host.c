@@ -16,8 +16,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <seccomp.h>
-#include <signal.h>
 
 #include "project_u.h"
 
@@ -48,9 +46,10 @@ char message_buffer[PAGE_SIZE] ;
 oe_enclave_t * enclave = NULL;
 char download_filename[] = "/tmp/image.XXXXXX";
 void cleanup_enclave(void){
+	return;
 	if(enclave)
 		oe_terminate_enclave(enclave);
-	unlink(download_filename);
+	//unlink(download_filename);
 }
 
 int recv_message(void) {
@@ -107,42 +106,6 @@ int send_backend_message(void) {
 		return -1;
 	if(message_size != write(attestation_fd, message_buffer + sizeof(size_t), message_size))
 		return -1;
-}
-#define ADD_SECCOMP_RULE(ctx, ...)                      \
-	do {                                                  \
-		if(seccomp_rule_add(ctx, __VA_ARGS__) < 0) {        \
-			fprintf(stderr, "Could not add seccomp rule");             \
-			seccomp_release(ctx);                             \
-			exit(-1);                                         \
-		}                                                   \
-	} while(0)
-void sig_handler(int signum) {
-	fprintf(stderr, "Process tried to do an action it is not allowed - KILLING\n");
-	exit(-1);
-}
-void insert_seccomp_filters(void) {
-	signal(SIGSYS, sig_handler);
-	
-	static scmp_filter_ctx ctx;
-	ctx = seccomp_init(SCMP_ACT_TRAP);
-	if(ctx == NULL) {
-		fprintf(stderr, "Could not open seccomp context");
-		exit(-1);
-	}	
-	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit      ), 0);
-	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
-	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write     ), 0);
-	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read      ), 0);
-
-	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk       ), 0);
-
-	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap      ), 0);
-	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat     ), 0);
-	if(seccomp_load(ctx) < 0) {
-		fprintf(stderr, "Could not load seccomp context\n");
-		exit(-1);
-	}
-
 }
 int main(int argc, char* argv[]) {
 	if (argc < 2) {
@@ -227,8 +190,9 @@ int main(int argc, char* argv[]) {
 	free(attestation_url_host);
 
 
+	
+	//insert_seccomp_filters();
 	enclave = create_enclave(download_filename);
-
 
 	if (enclave == NULL) {
 		fprintf(stderr, "Enclave creation failed\n");
@@ -243,7 +207,6 @@ int main(int argc, char* argv[]) {
 	int retval;
 
 	get_remote_report_with_pubkey(enclave, &retval, &pem_key, &key_size, &remote_report, &remote_report_size);
-
 	char report_len_string[32];
 	sprintf(report_len_string, "0x%016lx", remote_report_size);
 	write(fd_a, report_len_string, 18);
@@ -254,7 +217,6 @@ int main(int argc, char* argv[]) {
 	write(fd_a, key_len_string, 18);
 	write(fd_a, pem_key, key_size);	
 
-	insert_seccomp_filters();
 	enclave_init(enclave, message_buffer);	
 
 
@@ -296,6 +258,7 @@ int main(int argc, char* argv[]) {
 
 
 	cleanup_enclave();
+	exit(0);
 	return 0;
 fail:
 	cleanup_enclave();

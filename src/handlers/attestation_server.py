@@ -116,9 +116,9 @@ def attestation_handler(conn, socket, signing_key, attestation_key, handler):
 	symmetric_key = out[1].strip()
 	symmetric_key = symmetric_key.decode("hex")
 		
-	os.unlink(report_file)
-	os.unlink(enclave_key)
-	os.unlink(first_message)
+	#os.unlink(report_file)
+	#os.unlink(enclave_key)
+	#os.unlink(first_message)
 	secconn = SecureConnection(conn, symmetric_key)
 	handler(secconn)
 
