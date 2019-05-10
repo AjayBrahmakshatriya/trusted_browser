@@ -58,7 +58,7 @@ all: $(TARGET)
 
 
 $(BUILD_DIR)/python_path.sh:
-	echo PYTHONPATH=$(BUILD_DIR)/:$$PYTHONPATH > $@
+	echo export PYTHONPATH=$(BUILD_DIR)/:$$PYTHONPATH > $@
 
 $(BUILD_DIR)/trusted_module.js: $(JS_DIR)/trusted_module.js
 	cp $< $@
@@ -92,10 +92,10 @@ $(BUILD_DIR)/safecrt.o: $(SRC_DIR)/attestation/safecrt.c $(COMMON_HEADERS)
 	$(CC) -c $(DEFINES) -I$(SRC_DIR)/ -I $(SRC_DIR)/common $< -o $@ -I$(OE_SDK_PATH)/include -DOE_USE_LIBSGX -I$(OE_SRC_PATH)/include -DOCALL_HANDLE_PATH=$(BUILD_DIR)/attestation_ocall_handler.so
 
 $(BUILD_DIR)/host: $(BUILD_DIR)/host.o $(BUILD_DIR)/project_u.o $(BUILD_DIR)/common.a
-	$(CC) $^ -o $@ $(HOST_LIBS) -lcurl
+	$(CC) $^ -o $@ $(HOST_LIBS) -lcurl -lseccomp
 
 $(BUILD_DIR)/attestation: $(BUILD_DIR)/attestation.o $(BUILD_DIR)/common/crypto.o $(BUILD_DIR)/safecrt.o
-	$(CXX) $^ -o $@ $(OE_SDK_PATH)/lib/openenclave/enclave/liboeenclave.a -lmbedcrypto -lmbedx509 -lsgx_enclave_common -lpthread -ldl 
+	$(CXX) $^ -o $@ $(OE_SDK_PATH)/lib/openenclave/enclave/liboeenclave.a -lmbedcrypto -lmbedx509 -lsgx_enclave_common -lpthread -ldl
 
 $(BUILD_DIR)/attestation_ocall_handler.so: $(SRC_DIR)/attestation/hostcrt.c
 	$(CC) -shared -o $@ -Wl,--whole-archive $(OE_SDK_PATH)/lib/openenclave/host/liboehost.a -Wl,--no-whole-archive -lmbedx509 $(SRC_DIR)/attestation/hostcrt.c

@@ -16,7 +16,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-
+#include <seccomp.h>
+#include <signal.h>
 
 #include "project_u.h"
 
@@ -107,6 +108,42 @@ int send_backend_message(void) {
 	if(message_size != write(attestation_fd, message_buffer + sizeof(size_t), message_size))
 		return -1;
 }
+#define ADD_SECCOMP_RULE(ctx, ...)                      \
+	do {                                                  \
+		if(seccomp_rule_add(ctx, __VA_ARGS__) < 0) {        \
+			fprintf(stderr, "Could not add seccomp rule");             \
+			seccomp_release(ctx);                             \
+			exit(-1);                                         \
+		}                                                   \
+	} while(0)
+void sig_handler(int signum) {
+	fprintf(stderr, "Process tried to do an action it is not allowed - KILLING\n");
+	exit(-1);
+}
+void insert_seccomp_filters(void) {
+	signal(SIGSYS, sig_handler);
+	
+	static scmp_filter_ctx ctx;
+	ctx = seccomp_init(SCMP_ACT_TRAP);
+	if(ctx == NULL) {
+		fprintf(stderr, "Could not open seccomp context");
+		exit(-1);
+	}	
+	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit      ), 0);
+	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write     ), 0);
+	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read      ), 0);
+
+	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk       ), 0);
+
+	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap      ), 0);
+	ADD_SECCOMP_RULE(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat     ), 0);
+	if(seccomp_load(ctx) < 0) {
+		fprintf(stderr, "Could not load seccomp context\n");
+		exit(-1);
+	}
+
+}
 int main(int argc, char* argv[]) {
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s <fd of web socket>\n", argv[0]);
@@ -168,7 +205,7 @@ int main(int argc, char* argv[]) {
 
 
 	int fd_a;
-	
+
 	struct hostent *hostent;
 	struct sockaddr_in sockaddr_in;
 
@@ -217,6 +254,8 @@ int main(int argc, char* argv[]) {
 	write(fd_a, key_len_string, 18);
 	write(fd_a, pem_key, key_size);	
 
+	insert_seccomp_filters();
+	FILE* file = fopen("Makefile", "r");
 	enclave_init(enclave, message_buffer);	
 
 
@@ -229,26 +268,26 @@ int main(int argc, char* argv[]) {
 	write(fd_a, first_message, first_message_size);
 	free(first_message);
 
-	
+
 	char attestation_response[32];
 	int res_length = 0;
 	while (res_length < 18) {
 		res_length += read(fd_a, attestation_response + res_length, 18 - res_length);
 	}
 	attestation_response[18] = 0;
-	
+
 	unsigned int attestation_status = 0x1;
 	if (sscanf(attestation_response, "%i", &attestation_status) != 1) {
 		fprintf(stderr, "Remote server did not attest enclave\n");
 		goto fail;
 	}
-	
+
 	if(attestation_status != 0) {
 		fprintf(stderr, "Remote server did not attest enclave\n");
 		fprintf(stderr, "Received %s\n", attestation_response);
 		goto fail;
 	}
-	
+
 	printf("Remote server successfully attested enclave\n");
 
 	send_websocket_message(fd, "OK", sizeof("OK")-1);
