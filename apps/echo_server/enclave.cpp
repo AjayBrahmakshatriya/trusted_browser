@@ -12,7 +12,6 @@ void enclave_enter(void) {
 	if (message_recv == NULL)
 		goto exit;
 	message_recv[recv_size] = 0;
-	printf("%s\n", message_recv);
 	if (strcmp("HELLO FROM ATTESTER", (char*)message_recv))
 		goto exit;
 	while(1) {

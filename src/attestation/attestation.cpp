@@ -93,6 +93,21 @@ int extract_symmetric_key(Crypto *m_crypto, uint8_t * first_message, size_t firs
 	CHECK_RES(res);
 
 	memcpy(symmetric_key, decrypted, 32);
+
+	uint8_t hash[32];
+	m_crypto->Sha256(symmetric_key, 32, hash);
+	
+	mbedtls_pk_init(&key);
+	key_size = strlen((char*)enclave_pub_key) + 1;
+	res = mbedtls_pk_parse_public_key(&key, enclave_pub_key, key_size);
+	CHECK_RES(res);
+	rsa_context = mbedtls_pk_rsa(key);
+	rsa_context->padding = MBEDTLS_RSA_PKCS_V21;
+	rsa_context->hash_id = MBEDTLS_MD_SHA256;
+	uint8_t *signature = decrypted+32;	
+	res = mbedtls_rsa_pkcs1_verify(rsa_context, mbedtls_ctr_drbg_random, &(m_crypto->m_ctr_drbg_contex), MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256, 32, hash, signature);
+	CHECK_RES(res);
+
 	return 0;	
 }
 int main(int argc, char* argv[]) {

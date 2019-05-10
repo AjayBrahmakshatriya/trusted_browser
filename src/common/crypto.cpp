@@ -123,7 +123,6 @@ uint8_t* Crypto::generate_first_message(size_t *message_size){
 	uint8_t *message_to_encrypt = (uint8_t*)malloc(signature_size + 32);
 	memcpy(message_to_encrypt, m_symmetric_key, 32);
 	memcpy(message_to_encrypt+32, signature, signature_size);
-	
 
 
 	uint8_t *encrypted_message = (unsigned char*) malloc(4096);
