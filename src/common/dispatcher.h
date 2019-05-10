@@ -22,7 +22,7 @@ typedef struct _enclave_config_data
 
 class ecall_dispatcher
 {
-  private:
+  public:
     bool m_initialized;
     Crypto* m_crypto;
     Attestation* m_attestation;
@@ -48,6 +48,6 @@ class ecall_dispatcher
         uint8_t* encrypted_data,
         size_t encrypted_data_size);
     uint8_t* generate_first_message(size_t *s) { return m_crypto->generate_first_message(s);}
-  private:
+  public:
     bool initialize(const char* name);
 };

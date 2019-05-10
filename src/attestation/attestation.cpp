@@ -7,6 +7,14 @@
 #include <openenclave/bits/result.h>
 #include <cstring>
 #include <openenclave/internal/trace.h>
+#include <mbedtls/pk.h>
+#include <mbedtls/error.h>
+#include <mbedtls/rsa.h>
+#include <mbedtls/ctr_drbg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/sha256.h>
 
 extern "C" oe_result_t oe_verify_report(
 		const uint8_t* report,
@@ -14,7 +22,7 @@ extern "C" oe_result_t oe_verify_report(
 		oe_report_t* parsed_report);
 
 
-void load_public_key(char* filename, unsigned char** buffer, size_t* size) {
+void load_rsa_key(char* filename, unsigned char** buffer, size_t* size) {
 	if (*buffer != NULL) {
 		free(*buffer);
 	}
@@ -41,6 +49,52 @@ void load_report_file(char* filename, unsigned char** buffer, size_t* size) {
 	fread(*buffer, 1, *size, f);
 	fclose(f);	
 }
+
+void load_first_message(char* filename, uint8_t ** buffer, size_t *size) {
+	if (*buffer != NULL)
+		free(*buffer);
+	FILE *f = fopen(filename, "rb");
+	fseek(f, 0, SEEK_END);
+	*size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	*buffer = (uint8_t*) malloc(*size);
+	fread(*buffer, 1, *size, f);
+	fclose(f);
+}
+
+#define CHECK_RES(res) if (res != 0) {return res;}
+
+int extract_symmetric_key(Crypto *m_crypto, uint8_t * first_message, size_t first_message_size, uint8_t * enclave_pub_key, uint8_t * attestation_private_key, uint8_t symmetric_key[32]) {
+	mbedtls_pk_context key;
+	mbedtls_pk_init(&key);
+	mbedtls_rsa_context *rsa_context;
+	int res;	
+	int key_size = strlen((char*) attestation_private_key) + 1;
+	res = mbedtls_pk_parse_key(&key, attestation_private_key, key_size, NULL, 0);
+	CHECK_RES(res);	
+	
+	rsa_context = mbedtls_pk_rsa(key);
+	rsa_context->padding = MBEDTLS_RSA_PKCS_V21;
+	rsa_context->hash_id = MBEDTLS_MD_SHA256;
+	
+	uint8_t decrypted[2048];
+	size_t decrypted_size = 2048;
+
+	rsa_context->len = first_message_size;
+	
+	res = mbedtls_rsa_pkcs1_decrypt(rsa_context,
+					mbedtls_ctr_drbg_random, 
+					&(m_crypto->m_ctr_drbg_contex), 
+					MBEDTLS_RSA_PRIVATE,
+					&decrypted_size,
+					first_message,
+					decrypted,
+					decrypted_size);
+	CHECK_RES(res);
+
+	memcpy(symmetric_key, decrypted, 32);
+	return 0;	
+}
 int main(int argc, char* argv[]) {
 	if(argc < 4) {
 		fprintf(stderr, "Usage: %s <report_file_name> <enclave_pub_key> <signing_public_key>\n", argv[0]);
@@ -49,7 +103,7 @@ int main(int argc, char* argv[]) {
 	unsigned char m_other_enclave_mrsigner[32];
 	char * enclave_signing_pubkey_pem = NULL;
 	size_t enclave_signing_pubkey_size = 0;
-	load_public_key(argv[3], (unsigned char**)&enclave_signing_pubkey_pem, &enclave_signing_pubkey_size);
+	load_rsa_key(argv[3], (unsigned char**)&enclave_signing_pubkey_pem, &enclave_signing_pubkey_size);
 
 	Crypto *m_crypto = new Crypto(); 		
 	uint8_t *modulus = NULL;
@@ -83,16 +137,35 @@ int main(int argc, char* argv[]) {
 	size_t enclave_public_key_size = 0;
 	
 
-	load_public_key(argv[2], &enclave_public_key, &enclave_public_key_size);
+	load_rsa_key(argv[2], &enclave_public_key, &enclave_public_key_size);
 	enclave_public_key_size --;
 	unsigned char* report = NULL;
 	size_t report_size;
 	load_report_file(argv[1], &report, &report_size);
 	if(m_attestation->attest_remote_report(report, report_size, enclave_public_key, enclave_public_key_size)) {
-		printf("ATTESTATION SUCCEEDED\n");
 	} else {
 		printf("ATTESTATION FAILED\n");
 		return -1;
+	}
+	
+	uint8_t * attestation_private_key = NULL;
+	size_t attestation_private_key_size = 0;
+	load_rsa_key(argv[5], &attestation_private_key, &attestation_private_key_size);
+	
+	uint8_t * first_message = NULL;
+	size_t first_message_size;
+	load_first_message(argv[4], &first_message, &first_message_size);
+	
+	uint8_t symmetric_key[32];
+		
+	int res = extract_symmetric_key(m_crypto, first_message, first_message_size, enclave_public_key, attestation_private_key, symmetric_key);
+	if (res != 0) {
+		printf("ATTESTATION FAILED\n");
+		return -1;
+	}
+	printf("ATTESTATION SUCCEEDED\n");
+	for (int i = 0; i < 32; i++) {
+		printf("%02x", (int)symmetric_key[i]);
 	}
 
 	return 0;

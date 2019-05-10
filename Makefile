@@ -12,7 +12,7 @@ KEY_DIR=$(shell pwd)/keys
 APPS=$(BUILD_DIR)/echo_server/enclave.signed $(BUILD_DIR)/echo_server/index.html
 
 TARGET=$(BUILD_DIR)/host $(BUILD_DIR)/socket_server.py $(APPS) $(BUILD_DIR)/trusted_module.js $(BUILD_DIR)/attestation $(BUILD_DIR)/attestation_ocall_handler.so
-TARGET+=$(BUILD_DIR)/attestation_server.py
+TARGET+=$(BUILD_DIR)/attestation_server.py $(BUILD_DIR)/python_path.sh
 
 DEFINES=-DOE_API_VERSION=2 
 CXX_ONLY_DEFINES=-std=c++11
@@ -48,7 +48,7 @@ $(BUILD_DIR)/%.o: $(APPS_DIR)/%/enclave.cpp $(BUILD_DIR)/enclave-directory/proje
 	$(CC) -c $(ENC_CPPFLAGS) $< -o $@ -I$(BUILD_DIR)/enclave-directory/ $(DEFINES) -I$(SRC_DIR)/common/ -I$(SRC_DIR)
 	
 
-$(BUILD_DIR)/%/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $(KEY_DIR)/signing/private.pem $(BUILD_DIR)/common.a $(SRC_DIR)/enc.conf $(BUILD_DIR)/%.o
+$(BUILD_DIR)/%/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $(KEY_DIR)/signing/private.pem $(BUILD_DIR)/common.a $(SRC_DIR)/enc.conf $(BUILD_DIR)/%.o 
 	$(CC) $(BUILD_DIR)/enclave.o $(BUILD_DIR)/$*.o $(BUILD_DIR)/project_t.o -o $(BUILD_DIR)/$*/enclave $(BUILD_DIR)/common.a $(ENC_CPPLIBS) 
 	$(OE_SDK_PATH)/bin/oesign sign --enclave-image $(BUILD_DIR)/$*/enclave --config-file $(SRC_DIR)/enc.conf --key-file $(KEY_DIR)/signing/private.pem
 
@@ -56,6 +56,9 @@ $(BUILD_DIR)/%/enclave.signed: $(BUILD_DIR)/enclave.o $(BUILD_DIR)/project_t.o $
 
 all: $(TARGET)
 
+
+$(BUILD_DIR)/python_path.sh:
+	echo PYTHONPATH=$(BUILD_DIR)/:$$PYTHONPATH > $@
 
 $(BUILD_DIR)/trusted_module.js: $(JS_DIR)/trusted_module.js
 	cp $< $@
@@ -76,7 +79,7 @@ $(BUILD_DIR)/enclave-directory/attestation_key.h: $(SRC_DIR)/attestation_key_tem
 	python $(SRC_DIR)/attestation_key_template.py $(KEY_DIR)/attestation/public.pem $@
 	
 
-$(BUILD_DIR)/enclave.o: $(SRC_DIR)/enclave.c $(BUILD_DIR)/enclave-directory/project_t.h $(COMMON_HEADERS) $(BUILD_DIR)/enclave-directory/attestation_key.h
+$(BUILD_DIR)/enclave.o: $(SRC_DIR)/enclave.c $(BUILD_DIR)/enclave-directory/project_t.h $(COMMON_HEADERS) $(BUILD_DIR)/enclave-directory/attestation_key.h $(SRC_DIR)/enclave.h
 	$(CC) -c $(ENC_CFLAGS) $< -o $@ -I$(BUILD_DIR)/enclave-directory $(DEFINES) -I$(SRC_DIR)/common/
 $(BUILD_DIR)/project_t.o: $(BUILD_DIR)/enclave-directory/project_t.c $(BUILD_DIR)/enclave-directory/project_t.h
 	$(CC) -c $(ENC_CFLAGS) $< -o $@ -I$(BUILD_DIR)/enclave-directory $(DEFINES)

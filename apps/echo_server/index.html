@@ -13,8 +13,11 @@
 			var ping_count = 0;
 			var ping_function = function() {
 				module.send(Math.round(window.performance.now()*1000).toString());
-				if (ping_count > 100)
+				if (ping_count > 10) {
 					clearInterval(ping_caller);	
+					module.terminate();
+				}
+				ping_count++;
 			}
 			module.onmessage = function(message) {
 				curr_time = (Math.round(window.performance.now()*1000)); 

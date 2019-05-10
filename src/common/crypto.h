@@ -20,7 +20,7 @@
 
 class Crypto
 {
-  private:
+  public:
     mbedtls_ctr_drbg_context m_ctr_drbg_contex;
     mbedtls_entropy_context m_entropy_context;
     mbedtls_pk_context m_pk_context;
@@ -88,7 +88,7 @@ class Crypto
     
     uint8_t *generate_first_message(size_t*);
     
-  private:
+  public:
     /**
      * Crypto demonstrates use of mbedtls within the enclave to generate keys
      * and perform encryption. In this sample, each enclave instance generates

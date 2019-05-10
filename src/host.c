@@ -40,6 +40,7 @@ oe_enclave_t *create_enclave(const char *enclave_path) {
 
 
 int websocket_fd;
+int attestation_fd;
 #define PAGE_SIZE (0x1000)
 char message_buffer[PAGE_SIZE] ;
 
@@ -69,6 +70,42 @@ int send_message(void) {
 	message_buffer[PAGE_SIZE-1] = 0;
 	int total_length = strlen(message_buffer);
 	return send_websocket_message(websocket_fd, message_buffer, total_length);	
+}
+
+int recv_fixed_size(uint8_t *buffer, size_t size, int fd) {
+	size_t total = 0;
+	while(total < size) {
+		size_t chunk = read(fd, buffer + total, size - total);
+		if (chunk == 0)
+			return -1;
+		total += chunk;
+	}
+	return 0;
+}
+int recv_backend_message(void) {
+	char message_size_str[32] = {0};
+	if (recv_fixed_size(message_size_str, 18, attestation_fd))
+		return -1;
+	int message_size;
+	sscanf(message_size_str, "%i", &message_size);
+	if (message_size > (PAGE_SIZE - 2)) {
+		fprintf(stderr, "Too long of a message_received from backend\n");
+		return -2;
+	}		
+	*(size_t*)message_buffer = message_size;
+	if(recv_fixed_size(message_buffer + sizeof(size_t), message_size, attestation_fd))
+		return -1;	
+	return 0;
+}
+
+int send_backend_message(void) {
+	char message_size_str[32] = {0};
+	size_t message_size = *(size_t*)message_buffer;
+	sprintf(message_size_str, "0x%016lx", message_size);
+	if(18 != write(attestation_fd, message_size_str, 18))
+		return -1;
+	if(message_size != write(attestation_fd, message_buffer + sizeof(size_t), message_size))
+		return -1;
 }
 int main(int argc, char* argv[]) {
 	if (argc < 2) {
@@ -108,7 +145,6 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Image download failure\n");
 		goto fail;
 	}
-
 	if (res != CURLE_OK) {
 		send_websocket_message(fd, "FAILED", sizeof("FAILED")-1);
 		fprintf(stderr, "Couldn't download image\n");
@@ -129,8 +165,10 @@ int main(int argc, char* argv[]) {
 	printf("Creating attestation connection at %s:%d\n", attestation_url_host, (int)attestation_url_port); 
 
 	in_addr_t server_addr;
-	int fd_a;
 
+
+	int fd_a;
+	
 	struct hostent *hostent;
 	struct sockaddr_in sockaddr_in;
 
@@ -138,6 +176,7 @@ int main(int argc, char* argv[]) {
 	hostent = gethostbyname(attestation_url_host);
 
 	fd_a = socket(AF_INET, SOCK_STREAM, protoent->p_proto);
+	attestation_fd = fd_a;
 	server_addr = inet_addr(inet_ntoa(*(struct in_addr*)*(hostent->h_addr_list)));
 	sockaddr_in.sin_addr.s_addr = server_addr;
 	sockaddr_in.sin_family = AF_INET;

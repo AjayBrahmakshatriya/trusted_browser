@@ -11,5 +11,7 @@ enclave {
 	untrusted {
 		int recv_message(void);
 		int send_message(void);		
+		int recv_backend_message(void);
+		int send_backend_message(void);
 	};
 };
