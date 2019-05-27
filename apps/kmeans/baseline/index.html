@@ -1,0 +1,38 @@
+<html>
+<head>
+<body>
+	Echo Server demo 
+	<br>
+	<div id="log">
+	</div>
+	<script>
+		function gen_point() {
+			ang = Math.random() * 2 * Math.PI;
+			r = Math.random() * 10;
+			x = r * Math.cos(ang);
+			y = r * Math.sin(ang);
+			return x.toString() + " " + y.toString() + "\n"
+		}
+		do_cluster = function() {
+			var module = new WebSocket("ws://" + location.hostname + ":8082");
+			module.onmessage = function(message) {
+				curr_time = (Math.round(window.performance.now()*1000)); 
+				document.getElementById("log").innerHTML += curr_time.toString() + " " + message.data + "<br>";
+				do_cluster();			
+			}
+			module.onopen = function() {
+				setTimeout(function() {
+					points = "";
+					for (i = 0; i <1000; i++)
+						points += gen_point();
+					module.send(points);
+				}, 2000);
+			}
+			
+		}
+		document.body.onload = function() {
+			for (i = 0; i < 10; i++)
+				do_cluster();
+		}
+	</script>
+</body>

@@ -1,6 +1,5 @@
 <html>
 <head>
-<script src="/trusted_module.js"></script>
 <body>
 	Echo Server demo 
 	<br>
@@ -8,28 +7,26 @@
 	</div>
 	<script>
 		document.body.onload = function() {
-			module = new TrustedModule("enclave.signed",location.hostname + ":8083");
+			module = new WebSocket("ws://" + location.hostname + ":8082");
 			var ping_caller = null;
 			var ping_count = 0;
 			var ping_function = function() {
 				module.send(Math.round(window.performance.now()*1000).toString());
-				if (ping_count > 100000) {
+				if (ping_count > 100)
 					clearInterval(ping_caller);	
-					module.terminate();
 				}
 				ping_count++;
 			}
 			module.onmessage = function(message) {
 				curr_time = (Math.round(window.performance.now()*1000)); 
-				send_time = parseInt(message)
+				send_time = parseInt(message.data);
 				document.getElementById("log").innerHTML += "<br>" + (curr_time - send_time).toString() + "us";
 			}
-			module.onready = function() {
+			module.onopen = function() {
 				setTimeout(function() {
-					ping_caller = setInterval(function(){ping_function();}, 200);
+					ping_caller = setInterval(function(){ping_function();}, 100);
 				}, 2000);
 			}
-			module.run();
 		}
 	</script>
 </body>

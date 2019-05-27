@@ -3,52 +3,11 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
- 
 typedef struct { double x, y; int group; } point_t, *point;
- 
 double randf(double m)
 {
-	return m * rand() / (RAND_MAX - 1.);
+        return m * rand() / (RAND_MAX - 1.);
 }
- 
-point gen_xy(int count, double radius)
-{
-	double ang, r;
-	point p, pt = malloc(sizeof(point_t) * count);
- 
-	/* note: this is not a uniform 2-d distribution */
-	for (p = pt + count; p-- > pt;) {
-		ang = randf(2 * M_PI);
-		r = randf(radius);
-		p->x = r * cos(ang);
-		p->y = r * sin(ang);
-	}
- 
-	return pt;
-}
-
-point read_file(char* filename, int count)
-{
-    FILE *fp = fopen(filename, "r");
-    if(fp == NULL) {
-        printf("invalid file");
-        exit(1);
-    }
-    point p, pt = malloc(sizeof(point_t) * count);
-    p = pt;
-    char line [128];
-    int n = 0;
-    while(fgets (line, sizeof line, fp) != NULL && n < count) {
-        char* line_split = strtok(line, " \n");
-        p->x = atoi(line_split);
-        line_split = strtok(NULL, " \n");
-        p->y = atoi(line_split);
-        p++;
-        n++;
-    }
-    return pt;
-}
- 
 double dist2(point a, point b)
 {
 	double x = a->x - b->x, y = a->y - b->y;
@@ -196,37 +155,4 @@ void print_eps(point pts, int len, point cent, int n_cluster, char* file)
     fclose(fp);
 #	undef for_n
 #	undef for_len
-}
- 
-#define K 11
-int main(int argc, char *argv[])
-{
-    char filename[30];
-    char n_pts_[10];
-    int n_pts;
-
-    printf("Input file with points: ");
-    fgets(filename, 30, stdin);
-    char *pos;
-    if((pos=strchr(filename, '\n')) != NULL) {
-        *pos = '\0';
-    }
-
-    printf("Number of points to read: ");
-    fgets(n_pts_, 10, stdin);
-    n_pts = atoi(n_pts_);
-    clock_t begin = clock();
-    printf("Clustering...\n");
-    int i;
-    //point v = gen_xy(n_pts, 10);
-    point v = read_file(filename, n_pts);
-    point c = lloyd(v, n_pts, K);
-    if(argc >= 3) {
-        print_eps(v, n_pts, c, K, argv[2]);
-    }
-    // free(v); free(c);
-    clock_t end = clock();
-    printf("Clustering done: %f seconds \n", (double)(end - begin) / CLOCKS_PER_SEC);
-
-	return 0;
 }
